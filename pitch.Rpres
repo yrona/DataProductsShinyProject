@@ -1,0 +1,185 @@
+Interactive Statistics Lessons
+========================================================
+author: Yilmaz Rona
+date: 3/6/2016
+
+Basic Concept
+========================================================
+
+The basic concepts of statistics can be very difficult for students to initially grasp.  
+- Calculations are overwhelming and intricate.
+- Pages in textbook are static.
+
+To counter this, we propose to produce dynamic 'textbooks'
+- Lessons encoded in web applications.
+- Dynamic
+- Student observes how changes to parameters or data affect results.
+- Student gets to learn via 'playing'.
+
+
+Prototype Example
+========================================================
+
+Application provides an introductory lesson to Hypothesis testing.
+https://yrona.shinyapps.io/project/
+- Appropriate for introductory course.
+- Students are able to observe the impact of modifying parameters for
+  - Expected population distribution i.e. what we think the population is
+  - Actual population distribution i.e. the reality
+  - The sample size and the confidence value
+- The application graphically and textually describes the probability of rejecting or retaining the null hypothesis and how likely it is to come to the right conclusion.
+
+Prototype Example - How to use it
+========================================================
+1. Select the scenario you desire: 
+  $\mu<\mu_0$; $\mu>\mu_0$; or $\mu\neq\mu_0$
+2. Experiment with altering the mean of either the sample population or the actual population
+3. A plot will display the a probability distribution function for the mean of samples.
+4. The green area on the plot represents where the null hypothesis would be retained.  The yellow where it would be rejected.
+5. An explanation describes the outcome textually.
+
+Prototype Example - Sample Output
+========================================================
+
+```{r echo=FALSE}
+require(ggplot2)
+source("plot.R")
+source("stats.R")
+
+mu0 <- 100
+sd0 <- 12
+mu1 <- 106
+sd1 <- 24
+nsample <- 7
+alpha <- 0.05
+
+scenario <- "different"
+
+generate.confidence.interval.offset <- function(scenario,sd0,nsample,alpha) {
+  my.two.tail <- (scenario == "different")
+  intervals <- confidence.interval(mu0 = 0,sd0 = sd0,nsample = nsample,alpha = alpha/100,two.tailed = my.two.tail)
+  my.interval <- switch(scenario,
+         different = intervals,
+         low = intervals[1],
+         high = intervals[2])
+
+  my.interval
+
+}
+
+generate.result.explanation <- function(scenario,mu0,sd0,mu1,sd1,alpha,nsample) {
+  my.two.tail <- (scenario == "different")
+  intervals <- confidence.interval(mu0 = 0,sd0 = sd0,nsample = nsample,alpha = alpha/100,two.tailed = my.two.tail)
+  my.interval <- switch(scenario,
+                        different = intervals,
+                        low = intervals[1],
+                        high = intervals[2])
+  
+  if (length(my.interval) == 1) {
+    if (my.interval < 0) {
+      line0 <- mu0 + my.interval
+      H1.prob <- pnorm(line0, mean = mu1, sd = sd1/sqrt(nsample))
+      H0.prob <- 1 - H1.prob
+      if (mu1 < mu0) {
+        blurb <- paste("Since the actual mean is less than ",format(mu0,digits = 3),",", sep = "")
+        correct.prob = H1.prob
+      } else {
+        blurb <- paste("Since the actual mean is greater than or equal to",format(mu0,digits = 3),",", sep = "")
+        correct.prob = H0.prob
+      }
+      
+      explanation <- paste("Under this scenario, if you were to take a sample of ", nsample, 
+                          "observations,",paste(format(H1.prob*100,digits = 3),"%",sep = ""),
+                          "of the time you would observe a sample mean less than or equal to ",format(line0,digits = 3),
+                          ".  Therefore, you would conclude",paste(format(H1.prob*100,digits = 3),"%",sep = ""),
+                          "of the time that the mean was less than",format(mu0,digits = 3),
+                            "and would conclude",paste(format(H0.prob*100,digits = 3),"%",sep = ""),
+                          "of the time that the mean was not less than that.", blurb, 
+                          "you would be correct",paste(format(correct.prob*100,digits = 3),"%",sep = ""),"of the time.")
+      
+    } else {
+      line0 <- mu0 + my.interval
+      H1.prob <- pnorm(line0, mean = mu1, sd = sd1/sqrt(nsample), lower.tail = FALSE)
+      H0.prob <- 1 - H1.prob
+      if (mu1 > mu0) {
+        blurb <- paste("Since the actual mean is greater than ",format(mu0,digits = 3),",", sep = "")
+        correct.prob = H1.prob
+      } else {
+        blurb <- paste("Since the actual mean is less than or equal to",format(mu0,digits = 3),",", sep = "")
+        correct.prob = H0.prob
+      }
+      
+      explanation <- paste("Under this scenario, if you were to take a sample of ", nsample, 
+                           "observations,",paste(format(H1.prob*100,digits = 3),"%",sep = ""),
+                           "of the time you would observe a sample mean greater than or equal to",format(line0,digits = 3),
+                           ".  Therefore, you would conclude",paste(format(H1.prob*100,digits = 3),"%",sep = ""),
+                           "of the time that the mean was greater than",format(mu0,digits = 4),
+                           "and would conclude",paste(format(H0.prob*100,digits = 3),"%",sep = ""),
+                           "of the time that the mean was not greater than that.", blurb, 
+                           "you would be correct",paste(format(correct.prob*100,digits = 3),"%",sep = ""),"of the time.")     
+    }
+  } else {
+    line0 <- mu0 + my.interval[1]
+    line1 <- mu0 + my.interval[2]
+    H0.prob <- pnorm(line1, mean = mu1, sd = sd1/sqrt(nsample)) - pnorm(line0, mean = mu1, sd = sd1/sqrt(nsample))
+    H1.prob <- 1 - H0.prob 
+    
+    explanation <- paste("Under this scenario, if you were to take a sample of ", nsample, 
+                         "observations,",paste(format(H1.prob*100,digits = 3),"%",sep = ""),
+                         "of the time you would observe a sample mean less than or equal to ",format(line0,digits = 3),
+                         "or greater than or equal to ",format(line1,digits = 3),
+                         ".  Therefore, you would conclude",paste(format(H1.prob*100,digits = 3),"%",sep = ""),
+                         "of the time that the mean differed significantly from",format(mu0,digits = 3),
+                         "and would conclude",paste(format(H0.prob*100,digits = 3),"%",sep = ""),
+                         "of the time that the mean was was approximately equal to it.")
+    
+  }  
+}
+
+mu0 <- 100
+sd0 <- 12
+mu1 <- 106
+sd1 <- 24
+nsample <- 7
+alpha <- 0.05
+
+scenario <- "different"
+
+
+explanation <- generate.result.explanation(scenario = scenario, mu0 = mu0, sd0 = sd0, mu1 = mu1, sd1 = sd1, alpha = alpha, nsample = nsample)
+
+
+```
+
+```{r echo=FALSE}
+plot1.curves <- define.curves(
+                         c(mu0,mu1,mu1),
+                         c(sd0,sd1,(sd1/sqrt(nsample)) ),
+                         c(100*sd0,100*sd1,80*sd1/sqrt(nsample) ) ,
+                         c("Hypothesized Distribution","Actual Distribution","Probability Density Function for Sample Mean"),
+                         c("dotdash","dashed","solid"),
+                         c(2,3,1)
+                         )
+       
+       plot.interval <- mu0 + generate.confidence.interval.offset(scenario,sd0,nsample,alpha)
+       
+       my.plot.1 <- pdf.plot(plot1.curves, plot.interval ,3,1)
+       
+       my.plot.1 <- mean.plot(my.plot.1,c(mu0,mu1),c("dashed","dashed"),c(2,1))
+       
+       
+       
+       my.plot.1
+```
+***
+`r explanation`
+
+Additional Work Required 
+========================================================
+(forbidden slide #6)
+- Prototype could be made less complex or abstract
+- Prototype has bugs 
+  - MathJax failing to load when the web app is hosted at shinyapps.io.
+  - Number outputs in results printout are poorly formated, particularly when percentages are near 100%.
+- A series of web applications should be created, with each teaching a different concept.
+- A system to navigate from one lesson to another is very much needed.
